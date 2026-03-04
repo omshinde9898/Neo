@@ -1,0 +1,7 @@
+/venv
+.claude/
+.neo/
+
+neo.egg-info/
+
+*__pycache__*
