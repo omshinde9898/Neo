@@ -1,0 +1,19 @@
+# Core dependencies for Neo - Local coding agent
+
+# LLM
+openai>=1.0.0
+
+# CLI
+click>=8.0.0
+rich>=13.0.0
+
+# Code parsing
+tree-sitter>=0.20.0
+tree-sitter-python>=0.20.0
+tree-sitter-javascript>=0.20.0
+tree-sitter-typescript>=0.20.0
+
+# Utilities
+pydantic>=2.0.0
+platformdirs>=4.0.0
+python-dotenv>=1.0.0

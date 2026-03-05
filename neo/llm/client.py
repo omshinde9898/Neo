@@ -28,14 +28,19 @@ class Message:
     name: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Convert to OpenAI format."""
+        """Convert to OpenAI format with valid tool call types."""
         msg: dict[str, Any] = {"role": self.role}
 
         if self.content:
             msg["content"] = self.content
 
         if self.tool_calls:
-            msg["tool_calls"] = self.tool_calls
+            formatted_calls = []
+            for tc in self.tool_calls:
+                if "type" not in tc or tc["type"] not in ("function", "allowed_tools", "custom"):
+                    tc["type"] = "function"
+                formatted_calls.append(tc)
+            msg["tool_calls"] = formatted_calls
 
         if self.tool_call_id:
             msg["tool_call_id"] = self.tool_call_id
@@ -158,6 +163,7 @@ class OpenAIClient:
                 for tc in message.tool_calls:
                     tool_calls.append({
                         "id": tc.id,
+                        "type":"function",
                         "function": {
                             "name": tc.function.name,
                             "arguments": tc.function.arguments,
