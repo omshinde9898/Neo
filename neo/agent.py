@@ -1,54 +1,31 @@
-"""Main agent loop for Neo."""
+"""Main agent loop for Neo - Now using multi-agent orchestration."""
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+from neo.agents.orchestrator import AgentOrchestrator
+from neo.agents.base import AgentResult
 from neo.config import Config
-from neo.llm.client import Message, OpenAIClient
+from neo.llm.client import OpenAIClient
 from neo.memory.project import ProjectMemory
-from neo.memory.session import SessionMemory
-from neo.tools.base import ToolResult
-from neo.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
 
 
-SYSTEM_PROMPT = """You are Neo, a coding assistant.
-
-You help users write, read, and modify code. You have access to tools for:
-- Reading and writing files
-- Running shell commands
-- Git operations
-- Searching code
-
-Guidelines:
-1. Use tools to explore before making changes
-2. Show diffs before editing files
-3. Write clean, documented code
-4. Run tests or checks when available
-5. Be concise - focus on code, not explanations
-
-When editing files:
-- Always show the diff of changes first
-- Use atomic writes with backups
-- Follow existing code style
-
-Project Context:
-{project_context}
-"""
-
-
 class Agent:
-    """Simple agent loop for coding tasks."""
+    """Neo Agent - Multi-agent orchestrated coding assistant.
+
+    This is the main entry point for Neo. It uses AgentOrchestrator
+    to route tasks to specialized agents.
+    """
 
     def __init__(
         self,
         llm: OpenAIClient,
-        tools: ToolRegistry,
+        tools: Any,
         project_path: Path,
         config: Config | None = None,
     ):
@@ -62,126 +39,64 @@ class Agent:
         """
         self.llm = llm
         self.tools = tools
+        self.project_path = project_path
         self.config = config or Config.load()
-        self.memory = SessionMemory(max_turns=self.config.max_session_turns)
         self.project = ProjectMemory(project_path)
 
-        self.max_iterations = self.config.max_iterations
+        # Initialize the orchestrator
+        self.orchestrator = AgentOrchestrator(
+            llm=llm,
+            tools=tools,
+            project_path=project_path,
+            config=self.config,
+        )
 
-        logger.info(f"Agent initialized for project: {project_path}")
+        logger.info(f"Agent initialized with orchestrator for project: {project_path}")
 
-    async def run(self, user_input: str) -> str:
-        """Execute user request through the agent loop.
+    async def run(
+        self,
+        user_input: str,
+        streaming_callback: Callable[[str], None] | None = None,
+    ) -> str:
+        """Execute user request through the orchestrated multi-agent system.
 
         Args:
             user_input: User's request
+            streaming_callback: Optional callback for streaming output
 
         Returns:
             Final response from the agent
         """
         logger.info(f"Processing request: {user_input[:50]}...")
 
-        # Build initial messages
-        messages = [
-            Message(role="system", content=self.build_context()),
-            *[Message(role=m["role"], content=m["content"]) for m in self.memory.get_messages()],
-            Message(role="user", content=user_input),
-        ]
-
-        # Agent loop
-        for iteration in range(self.max_iterations):
-            logger.debug(f"Iteration {iteration + 1}/{self.max_iterations}")
-
-            try:
-                # Call LLM
-                result = await self.llm.complete(
-                    messages=messages,
-                    tools=self.tools.to_openai_format(),
-                )
-
-                if result.has_function_calls():
-                    # Execute tools
-                    logger.debug(f"Executing {len(result.tool_calls)} tool call(s)")
-
-                    # Add assistant message with tool calls
-                    messages.append(Message(
-                        role="assistant",
-                        content=result.content,
-                        tool_calls=result.tool_calls,
-                    ))
-
-                    # Execute each tool call
-                    for tool_call in result.tool_calls:
-                        tool_result = await self.execute_tool_call(tool_call)
-
-                        # Add tool result to messages
-                        messages.append(Message(
-                            role="tool",
-                            content=tool_result.output if tool_result.success else (tool_result.error or "Error"),
-                            tool_call_id=tool_call.get("id", ""),
-                            name=tool_call.get("function", {}).get("name", ""),
-                        ))
-
-                else:
-                    # Final response - no more tool calls
-                    response = result.content or "(no response)"
-
-                    # Store in memory
-                    self.memory.add_turn("user", user_input)
-                    self.memory.add_turn("assistant", response)
-
-                    logger.info("Request completed")
-                    return response
-
-            except Exception as e:
-                logger.exception("Error in agent loop")
-                return f"Error: {str(e)}"
-
-        return "Max iterations reached. The task may be too complex."
-
-    async def execute_tool_call(self, tool_call: dict[str, Any]) -> ToolResult:
-        """Execute a single tool call.
-
-        Args:
-            tool_call: Tool call from LLM
-
-        Returns:
-            Tool execution result
-        """
-        function = tool_call.get("function", {})
-        name = function.get("name", "")
-        arguments_str = function.get("arguments", "{}")
-
         try:
-            arguments = json.loads(arguments_str)
-        except json.JSONDecodeError:
-            return ToolResult(
-                success=False,
-                error=f"Invalid JSON in tool arguments: {arguments_str}",
+            # Execute through orchestrator
+            result = await self.orchestrator.execute(
+                user_input=user_input,
+                streaming_callback=streaming_callback,
             )
 
-        logger.debug(f"Executing tool: {name} with args: {arguments}")
+            if result.success:
+                return result.content
+            else:
+                return f"Error: {result.error or 'Unknown error'}"
 
-        return await self.tools.execute(name, arguments)
-
-    def build_context(self) -> str:
-        """Build system context with project info."""
-        return SYSTEM_PROMPT.format(
-            project_context=self.project.get_context()
-        )
+        except Exception as e:
+            logger.exception("Error in agent execution")
+            return f"Error: {str(e)}"
 
     def get_status(self) -> dict[str, Any]:
         """Get agent status information."""
+        orch_status = self.orchestrator.get_status()
         return {
             "model": self.llm.model,
             "project": str(self.project.path),
             "languages": self.project.languages,
-            "memory_turns": len(self.memory),
-            "max_turns": self.memory.max_turns,
+            **orch_status,
             "tokens": self.llm.get_token_stats(),
         }
 
     def reset_memory(self) -> None:
-        """Clear conversation history."""
-        self.memory.clear()
+        """Clear conversation history and reset orchestrator."""
+        self.orchestrator.reset()
         logger.info("Memory cleared")

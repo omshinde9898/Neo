@@ -1,19 +1,38 @@
-# Core dependencies for Neo - Local coding agent
+# Core dependencies for Neo - Advanced Coding Agent
 
 # LLM
 openai>=1.0.0
 
-# CLI
+# CLI & TUI
 click>=8.0.0
 rich>=13.0.0
+textual>=0.52.0
+textual-autocomplete>=3.0.0
 
 # Code parsing
 tree-sitter>=0.20.0
 tree-sitter-python>=0.20.0
 tree-sitter-javascript>=0.20.0
 tree-sitter-typescript>=0.20.0
+tree-sitter-go>=0.20.0
+tree-sitter-rust>=0.20.0
+
+# Vector search & embeddings (for semantic code search)
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+numpy>=1.24.0
+
+# Database & storage
+platformdirs>=4.0.0
 
 # Utilities
 pydantic>=2.0.0
-platformdirs>=4.0.0
+pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
+aiofiles>=23.0.0
+watchdog>=3.0.0
+
+# Development
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-textual-snapshot>=0.4.0

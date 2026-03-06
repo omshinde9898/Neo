@@ -1,15 +1,15 @@
-"""LLM client for Neo."""
+"""LLM client for Neo with streaming support."""
 
 from __future__ import annotations
 
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, AsyncIterator, Callable
 
 try:
     from openai import AsyncOpenAI
-    from openai.types.chat import ChatCompletion, ChatCompletionMessage
+    from openai.types.chat import ChatCompletionChunk
     HAS_OPENAI = True
 except ImportError:
     HAS_OPENAI = False
@@ -70,8 +70,87 @@ class CompletionResult:
         return self.tool_calls
 
 
+class StreamingResponse:
+    """Handler for streaming LLM responses."""
+
+    def __init__(
+        self,
+        stream: AsyncIterator[ChatCompletionChunk],
+        callback: Callable[[str], None] | None = None,
+    ):
+        """Initialize streaming response handler.
+
+        Args:
+            stream: The async stream from OpenAI
+            callback: Optional callback for each token
+        """
+        self.stream = stream
+        self.callback = callback
+        self.content_parts: list[str] = []
+        self.tool_calls: list[dict[str, Any]] = []
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.model = ""
+
+    async def accumulate(self) -> CompletionResult:
+        """Accumulate the stream and return final result.
+
+        Returns:
+            CompletionResult with accumulated content
+        """
+        async for chunk in self.stream:
+            # Get model from first chunk
+            if not self.model and hasattr(chunk, "model"):
+                self.model = chunk.model
+
+            # Process delta
+            if chunk.choices:
+                delta = chunk.choices[0].delta
+
+                # Handle content
+                if delta.content:
+                    self.content_parts.append(delta.content)
+                    if self.callback:
+                        self.callback(delta.content)
+
+                # Handle tool calls
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        # Accumulate tool call data
+                        idx = tc_delta.index
+                        while len(self.tool_calls) <= idx:
+                            self.tool_calls.append({
+                                "id": "",
+                                "type": "function",
+                                "function": {"name": "", "arguments": ""},
+                            })
+
+                        # Update tool call
+                        if tc_delta.id:
+                            self.tool_calls[idx]["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                self.tool_calls[idx]["function"]["name"] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                self.tool_calls[idx]["function"]["arguments"] += tc_delta.function.arguments
+
+                # Handle finish reason
+                if chunk.choices[0].finish_reason:
+                    logger.debug(f"Stream finished: {chunk.choices[0].finish_reason}")
+
+        # Compile result
+        content = "".join(self.content_parts) if self.content_parts else None
+
+        return CompletionResult(
+            content=content,
+            tool_calls=self.tool_calls,
+            completion_tokens=len(self.content_parts),
+            model=self.model,
+        )
+
+
 class OpenAIClient:
-    """OpenAI API client with function calling support."""
+    """OpenAI API client with function calling and streaming support."""
 
     SUPPORTED_MODELS = [
         "gpt-4o-mini",
@@ -84,9 +163,9 @@ class OpenAIClient:
         """Initialize the OpenAI client.
 
         Args:
-            api_key: OpenAI API key (use "ollama" or any string for Ollama)
-            model: Model to use (default: gpt-4o-mini)
-            base_url: Custom API base URL (e.g., http://localhost:11434/v1 for Ollama)
+            api_key: OpenAI API key
+            model: Model to use
+            base_url: Custom API base URL (e.g., for Ollama)
         """
         if not HAS_OPENAI:
             raise ImportError(
@@ -97,7 +176,7 @@ class OpenAIClient:
         self.model = model
         self.base_url = base_url
 
-        # Initialize client with optional base_url
+        # Initialize client
         client_kwargs = {"api_key": api_key}
         if base_url:
             client_kwargs["base_url"] = base_url
@@ -108,16 +187,14 @@ class OpenAIClient:
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
 
-        if base_url:
-            logger.info(f"OpenAI client initialized with model: {model} (base_url: {base_url})")
-        else:
-            logger.info(f"OpenAI client initialized with model: {model}")
+        logger.info(f"OpenAI client initialized with model: {model}")
 
     async def complete(
         self,
         messages: list[Message],
         tools: list[dict[str, Any]] | None = None,
         stream: bool = False,
+        streaming_callback: Callable[[str], None] | None = None,
     ) -> CompletionResult:
         """Send completion request to OpenAI.
 
@@ -125,58 +202,72 @@ class OpenAIClient:
             messages: List of messages
             tools: Optional list of tool definitions
             stream: Whether to stream the response
+            streaming_callback: Optional callback for streaming tokens
 
         Returns:
             CompletionResult with content and/or tool calls
         """
-        # Convert messages to OpenAI format
         openai_messages = [m.to_dict() for m in messages]
 
         logger.debug(f"Sending {len(openai_messages)} messages to OpenAI")
-        if tools:
-            logger.debug(f"With {len(tools)} tools")
 
         try:
-            # Make the API call
-            response: ChatCompletion = await self.client.chat.completions.create(
-                model=self.model,
-                messages=openai_messages,
-                tools=tools if tools else None,
-                tool_choice="auto" if tools else None,
-                stream=False,  # Streaming not implemented yet
-            )
+            if stream:
+                # Streaming mode
+                response_stream = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=openai_messages,
+                    tools=tools if tools else None,
+                    tool_choice="auto" if tools else None,
+                    stream=True,
+                )
 
-            # Extract result
-            message = response.choices[0].message
+                stream_handler = StreamingResponse(response_stream, streaming_callback)
+                result = await stream_handler.accumulate()
 
-            # Track tokens
-            prompt_tokens = response.usage.prompt_tokens if response.usage else 0
-            completion_tokens = response.usage.completion_tokens if response.usage else 0
-            self.total_prompt_tokens += prompt_tokens
-            self.total_completion_tokens += completion_tokens
+                # Update token stats (estimated for streaming)
+                self.total_completion_tokens += len(stream_handler.content_parts)
 
-            logger.debug(f"Tokens used: {prompt_tokens} prompt, {completion_tokens} completion")
+                return result
+            else:
+                # Non-streaming mode
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=openai_messages,
+                    tools=tools if tools else None,
+                    tool_choice="auto" if tools else None,
+                    stream=False,
+                )
 
-            # Extract tool calls
-            tool_calls = []
-            if message.tool_calls:
-                for tc in message.tool_calls:
-                    tool_calls.append({
-                        "id": tc.id,
-                        "type":"function",
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    })
+                # Extract result
+                message = response.choices[0].message
 
-            return CompletionResult(
-                content=message.content,
-                tool_calls=tool_calls,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                model=response.model,
-            )
+                # Track tokens
+                prompt_tokens = response.usage.prompt_tokens if response.usage else 0
+                completion_tokens = response.usage.completion_tokens if response.usage else 0
+                self.total_prompt_tokens += prompt_tokens
+                self.total_completion_tokens += completion_tokens
+
+                # Extract tool calls
+                tool_calls = []
+                if message.tool_calls:
+                    for tc in message.tool_calls:
+                        tool_calls.append({
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        })
+
+                return CompletionResult(
+                    content=message.content,
+                    tool_calls=tool_calls,
+                    prompt_tokens=prompt_tokens,
+                    completion_tokens=completion_tokens,
+                    model=response.model,
+                )
 
         except Exception as e:
             logger.exception("Error calling OpenAI API")
@@ -186,10 +277,10 @@ class OpenAIClient:
         """Convert tools to OpenAI function format.
 
         Args:
-            tools: List of tool objects with to_openai_format method
+            tools: List of tool objects
 
         Returns:
-            List of tool definitions in OpenAI format
+            List of tool definitions
         """
         return [tool.to_openai_format() for tool in tools]
 
