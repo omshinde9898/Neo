@@ -13,28 +13,14 @@ class SearchCodeTool(BaseTool):
     """Search for code patterns using regex."""
 
     name = "search_code"
-    description = "Search for text patterns in files using regex. Searches file contents and returns matching lines with context."
+    description = "Search for patterns in files using regex."
     parameters = {
         "type": "object",
         "properties": {
-            "pattern": {
-                "type": "string",
-                "description": "Regex pattern to search for",
-            },
-            "path": {
-                "type": "string",
-                "description": "Directory to search in (default: current directory)",
-                "default": ".",
-            },
-            "glob": {
-                "type": "string",
-                "description": "File pattern to search (e.g., '*.py', default: all files)",
-            },
-            "case_sensitive": {
-                "type": "boolean",
-                "description": "Case sensitive search (default: false)",
-                "default": False,
-            },
+            "pattern": {"type": "string", "description": "Regex pattern"},
+            "path": {"type": "string", "description": "Directory to search", "default": "."},
+            "glob": {"type": "string", "description": "File pattern (e.g., '*.py')"},
+            "case_sensitive": {"type": "boolean", "description": "Case sensitive", "default": False},
         },
         "required": ["pattern"],
     }
@@ -139,23 +125,13 @@ class ViewCodeTool(BaseTool):
     """View code with context and syntax highlighting."""
 
     name = "view"
-    description = "View a file with line numbers and optional context around a specific line. Useful for examining code structure."
+    description = "View a file with line numbers."
     parameters = {
         "type": "object",
         "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "Path to the file to view",
-            },
-            "line": {
-                "type": "integer",
-                "description": "Line number to center on (optional)",
-            },
-            "context": {
-                "type": "integer",
-                "description": "Number of context lines to show (default: 10)",
-                "default": 10,
-            },
+            "file_path": {"type": "string", "description": "Path to file"},
+            "line": {"type": "integer", "description": "Center on line"},
+            "context": {"type": "integer", "description": "Context lines", "default": 10},
         },
         "required": ["file_path"],
     }

@@ -16,7 +16,7 @@ class GetSystemInfoTool(BaseTool):
     """Get system information."""
 
     name = "get_system_info"
-    description = "Get system information: OS, Python version, current time, working directory, and environment variables."
+    description = "Get system info."
     parameters = {
         "type": "object",
         "properties": {},

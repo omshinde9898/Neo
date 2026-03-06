@@ -301,7 +301,7 @@ class NeoApp(App):
                         classes="welcome",
                     )
                     yield Label(
-                        "Type a message + Enter to send, or Ctrl+K for commands",
+                        "Type a message and press Enter to send, or Ctrl+K for commands",
                         id="welcome-hint",
                         classes="welcome dim",
                     )
@@ -495,11 +495,15 @@ Keyboard Shortcuts:
         Args:
             query: User query
         """
+        # Lock input while processing
+        input_area = self.query_one("#input-area", InputArea)
+        input_area.set_disabled(True)
+
         # Update status
         status = self.query_one("#status-bar", StatusBar)
         status.status = "Thinking..."
 
-        # Add streaming message
+        # Add streaming message (starts with thinking indicator)
         self.call_later(self._add_assistant_message)
 
         try:
@@ -520,6 +524,11 @@ Keyboard Shortcuts:
             self.call_later(self._finish_streaming_message)
             self._add_system_message(f"Error: {e}")
             status.status = "Error"
+
+        finally:
+            # Re-enable input
+            input_area.set_disabled(False)
+            input_area.focus_input()
 
     def on_input_area_submitted(self, event: InputArea.Submitted) -> None:
         """Handle input area submission.

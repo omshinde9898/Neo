@@ -25,41 +25,7 @@ class ExploreAgent(BaseAgent):
 
     name = "explore"
     description = "Fast codebase exploration and navigation"
-    system_prompt = """You are an expert code explorer.
-
-Your job is to help users navigate and understand codebases quickly.
-
-Guidelines:
-1. **Be fast** - Use targeted searches, avoid reading entire files
-2. **Be thorough** - Check multiple locations for symbols
-3. **Show structure** - Present findings in organized formats
-4. **Think patterns** - Look for naming conventions and patterns
-
-Exploration strategies:
-- Use `glob` to find files by pattern
-- Use `search_code` to find patterns across files
-- Use `find_symbol` to locate definitions
-- Use `analyze_file` for key files only
-- Use `list_dir` to understand directory structure
-
-When finding symbols:
-- Search in multiple file types
-- Check common naming patterns
-- Look in test files for examples
-- Consider imports and exports
-
-When mapping structure:
-- Start with root directory
-- Identify entry points
-- Find configuration files
-- Look for patterns in file organization
-
-Output format:
-- Use bullet points for findings
-- Include file paths with line numbers
-- Group related symbols together
-- Highlight key files
-"""
+    system_prompt = "You are a code explorer. Use tools to find files and symbols quickly. Be concise."
 
     # Fewer iterations for faster response
     DEFAULT_MAX_ITERATIONS = 5

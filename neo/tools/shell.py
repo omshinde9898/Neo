@@ -14,27 +14,13 @@ class RunShellTool(BaseTool):
     """Execute shell commands with safety checks."""
 
     name = "run_shell"
-    description = """Execute a shell command and return the output.
-
-Safety note: Certain dangerous commands are blocked (rm -rf /, format, etc.).
-Commands run in the current working directory.
-Timeout is set to 60 seconds by default."""
+    description = "Execute a shell command."
     parameters = {
         "type": "object",
         "properties": {
-            "command": {
-                "type": "string",
-                "description": "Shell command to execute",
-            },
-            "timeout": {
-                "type": "integer",
-                "description": "Timeout in seconds (default: 60)",
-                "default": 60,
-            },
-            "cwd": {
-                "type": "string",
-                "description": "Working directory for command (default: current directory)",
-            },
+            "command": {"type": "string", "description": "Command to execute"},
+            "timeout": {"type": "integer", "description": "Timeout in seconds", "default": 60},
+            "cwd": {"type": "string", "description": "Working directory"},
         },
         "required": ["command"],
     }

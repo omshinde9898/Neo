@@ -50,34 +50,22 @@ class ChatMessage(Static):
 
     def update_content(self) -> None:
         """Update the displayed content."""
-        if not self.content:
+        if not self.content and not self.is_streaming:
             return
 
-        # Create styled text
+        # Create styled output
         if self.is_user:
-            # User messages - simple, right-aligned
-            style = "bold cyan"
-            title = "You"
-            border_style = "cyan"
+            # User messages - cyan, no box
+            content_text = Text.from_markup(f"[bold cyan]You:[/bold cyan] {self.content}")
         else:
             # Assistant messages
-            style = ""
-            title = "Neo"
-            border_style = "green"
+            if self.is_streaming and not self.content:
+                # Thinking indicator
+                content_text = Text.from_markup("[dim]Neo is thinking...[/dim]")
+            else:
+                content_text = Text.from_markup(f"[bold green]Neo:[/bold green] {self.content}")
 
-        # Add streaming indicator
-        if self.is_streaming:
-            title += " [dim](typing...)[/dim]"
-
-        # Render with panel
-        renderable = Text.from_markup(self.content)
-        panel = Panel(
-            renderable,
-            title=title,
-            border_style=border_style,
-            title_align="left",
-        )
-        self.update(panel)
+        self.update(content_text)
 
     def append_text(self, text: str) -> None:
         """Append text to the message (for streaming).
@@ -460,7 +448,7 @@ class _SubmitTextArea(TextArea):
 class InputArea(Static):
     """Enhanced input area with multi-line support."""
 
-    placeholder = reactive("Type your message... (Enter to submit)")
+    placeholder = reactive("Type a message and press Enter...")
 
     def __init__(self, **kwargs: Any):
         """Initialize input area."""
@@ -496,6 +484,18 @@ class InputArea(Static):
     def focus_input(self) -> None:
         """Focus the input area."""
         self.text_area.focus()
+
+    def set_disabled(self, disabled: bool) -> None:
+        """Enable or disable the input area.
+
+        Args:
+            disabled: True to disable, False to enable
+        """
+        self.text_area.disabled = disabled
+        if disabled:
+            self.text_area.placeholder = "Processing..."
+        else:
+            self.text_area.placeholder = self.placeholder
 
     class Submitted(Message):
         """Message sent when input is submitted."""

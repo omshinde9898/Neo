@@ -41,12 +41,12 @@ class Config:
     mock_mode: bool = False  # Use mock LLM for testing
 
     # Behavior
-    max_iterations: int = 10
+    max_iterations: int = 5
     auto_confirm_edits: bool = False
     show_diffs: bool = True
 
     # Context
-    max_session_turns: int = 20
+    max_session_turns: int = 5
     include_project_context: bool = True
 
     # UI

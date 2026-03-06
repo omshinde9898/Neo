@@ -14,14 +14,11 @@ class AnalyzeFileTool(BaseTool):
     """Analyze Python file structure."""
 
     name = "analyze_file"
-    description = "Analyze a Python file and return its structure: imports, classes, functions, and their docstrings."
+    description = "Analyze a Python file structure."
     parameters = {
         "type": "object",
         "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "Path to the Python file to analyze",
-            },
+            "file_path": {"type": "string", "description": "Path to Python file"},
         },
         "required": ["file_path"],
     }
@@ -168,19 +165,12 @@ class FindSymbolTool(BaseTool):
     """Find symbol definitions in Python files."""
 
     name = "find_symbol"
-    description = "Find where a class or function is defined across the codebase. Searches Python files for the symbol definition."
+    description = "Find class/function definitions."
     parameters = {
         "type": "object",
         "properties": {
-            "symbol": {
-                "type": "string",
-                "description": "Name of the class or function to find",
-            },
-            "path": {
-                "type": "string",
-                "description": "Directory to search in (default: current directory)",
-                "default": ".",
-            },
+            "symbol": {"type": "string", "description": "Name to find"},
+            "path": {"type": "string", "description": "Directory to search", "default": "."},
         },
         "required": ["symbol"],
     }

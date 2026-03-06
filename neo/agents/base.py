@@ -68,22 +68,11 @@ class ToolExecution:
 
 
 class BaseAgent(ABC):
-    """Base class for all Neo agents.
-
-    Agents are specialized LLM-powered workers that handle specific types of tasks.
-    They maintain their own memory, can use tools, and can spawn sub-agents.
-    """
+    """Base class for all Neo agents."""
 
     name: str = ""
     description: str = ""
-    system_prompt: str = """You are a specialized agent.
-
-Guidelines:
-1. Use tools to gather information before making decisions
-2. Be concise and focused on your specific task
-3. Report results clearly with actionable outputs
-4. If stuck, ask for clarification rather than guessing
-"""
+    system_prompt: str = "You are a coding assistant. Use tools. Be concise."
 
     def __init__(
         self,
@@ -278,14 +267,19 @@ Guidelines:
                 executed.add(execution.tool_name)
                 pending.remove(execution)
 
-        # Add all results to messages
+        # Add all results to messages (with size limits to control token usage)
+        MAX_TOOL_OUTPUT = 2000  # Limit tool output to prevent token explosion
         for execution in executions:
             result = execution.result
             if result:
+                output = result.output if result.success else (result.error or "Error")
+                # Truncate long outputs
+                if len(output) > MAX_TOOL_OUTPUT:
+                    output = output[:MAX_TOOL_OUTPUT] + f"\n... ({len(output) - MAX_TOOL_OUTPUT} chars truncated)"
                 messages.append(
                     Message(
                         role="tool",
-                        content=result.output if result.success else (result.error or "Error"),
+                        content=output,
                         name=execution.tool_name,
                         tool_call_id=execution.tool_call_id,  # Required by OpenAI API
                     )
@@ -311,12 +305,11 @@ Guidelines:
         Returns:
             System message
         """
-        context_parts = [self.system_prompt]
-
+        # Keep system prompt minimal - extra_context only if explicitly provided
+        content = self.system_prompt
         if extra_context:
-            context_parts.append(f"\nAdditional Context:\n{extra_context}")
-
-        return Message(role="system", content="\n".join(context_parts))
+            content = f"{self.system_prompt}\n\nContext: {extra_context}"
+        return Message(role="system", content=content)
 
     def spawn_subagent(self, agent_class: type[BaseAgent]) -> BaseAgent:
         """Spawn a sub-agent for parallel work.

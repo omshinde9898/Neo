@@ -13,24 +13,13 @@ class ReadFileTool(BaseTool):
     """Read file contents with optional offset and limit."""
 
     name = "read_file"
-    description = "Read contents of a file. Returns the file content as a string. Use offset and limit to read specific portions of large files."
+    description = "Read a file. Use offset and limit for large files."
     parameters = {
         "type": "object",
         "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "Path to the file to read (absolute or relative to current directory)",
-            },
-            "offset": {
-                "type": "integer",
-                "description": "Line number to start reading from (1-indexed)",
-                "default": 1,
-            },
-            "limit": {
-                "type": "integer",
-                "description": "Maximum number of lines to read",
-                "default": 100,
-            },
+            "file_path": {"type": "string", "description": "Path to file"},
+            "offset": {"type": "integer", "description": "Start line (1-indexed)", "default": 1},
+            "limit": {"type": "integer", "description": "Max lines to read", "default": 50},
         },
         "required": ["file_path"],
     }
@@ -39,7 +28,7 @@ class ReadFileTool(BaseTool):
         self,
         file_path: str,
         offset: int | str = 1,
-        limit: int | str = 100,
+        limit: int | str = 50,
     ) -> ToolResult:
         """Read a file with optional offset and line limit."""
         try:
@@ -113,18 +102,12 @@ class WriteFileTool(BaseTool):
     """Write content to a file atomically with backup."""
 
     name = "write_file"
-    description = "Write content to a file. Creates parent directories if needed. If the file exists, creates a backup with .neo.bak extension before overwriting."
+    description = "Write content to a file."
     parameters = {
         "type": "object",
         "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "Path to the file to write",
-            },
-            "content": {
-                "type": "string",
-                "description": "Content to write to the file",
-            },
+            "file_path": {"type": "string", "description": "Path to file"},
+            "content": {"type": "string", "description": "Content to write"},
         },
         "required": ["file_path", "content"],
     }
@@ -176,27 +159,14 @@ class EditFileTool(BaseTool):
     """Edit a file by replacing text."""
 
     name = "edit_file"
-    description = "Edit a file by replacing old_string with new_string. Shows a diff preview of the changes. Only replaces the first occurrence unless replace_all is true."
+    description = "Edit a file by replacing text."
     parameters = {
         "type": "object",
         "properties": {
-            "file_path": {
-                "type": "string",
-                "description": "Path to the file to edit",
-            },
-            "old_string": {
-                "type": "string",
-                "description": "Text to replace",
-            },
-            "new_string": {
-                "type": "string",
-                "description": "Text to replace with",
-            },
-            "replace_all": {
-                "type": "boolean",
-                "description": "Replace all occurrences instead of just the first",
-                "default": False,
-            },
+            "file_path": {"type": "string", "description": "Path to file"},
+            "old_string": {"type": "string", "description": "Text to replace"},
+            "new_string": {"type": "string", "description": "Replacement text"},
+            "replace_all": {"type": "boolean", "description": "Replace all occurrences", "default": False},
         },
         "required": ["file_path", "old_string", "new_string"],
     }
@@ -263,9 +233,15 @@ class EditFileTool(BaseTool):
 
             diff_str = "".join(diff)
 
+            # Limit diff output size
+            MAX_DIFF = 1000
+            diff_output = diff_str[:MAX_DIFF]
+            if len(diff_str) > MAX_DIFF:
+                diff_output += f"\n... ({len(diff_str) - MAX_DIFF} chars truncated)"
+
             return ToolResult(
                 success=True,
-                output=f"Edited {path}\n\nDiff:\n{diff_str}",
+                output=f"Edited {path}\n\nDiff:\n{diff_output}",
                 data={
                     "file_path": str(path),
                     "occurrences_replaced": occurrences if replace_all else 1,
@@ -291,19 +267,12 @@ class ListDirTool(BaseTool):
     """List directory contents."""
 
     name = "list_dir"
-    description = "List the contents of a directory. Shows files and subdirectories with their types and sizes."
+    description = "List directory contents."
     parameters = {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to the directory to list (default: current directory)",
-            },
-            "recursive": {
-                "type": "boolean",
-                "description": "List recursively",
-                "default": False,
-            },
+            "path": {"type": "string", "description": "Directory path", "default": "."},
+            "recursive": {"type": "boolean", "description": "List recursively", "default": False},
         },
         "required": [],
     }
@@ -377,19 +346,12 @@ class GlobTool(BaseTool):
     """Search for files matching a pattern."""
 
     name = "glob"
-    description = "Search for files matching a glob pattern (e.g., '*.py', 'src/**/*.js'). Returns a list of matching file paths."
+    description = "Search for files matching a glob pattern."
     parameters = {
         "type": "object",
         "properties": {
-            "pattern": {
-                "type": "string",
-                "description": "Glob pattern to match (e.g., '*.py', 'src/**/*.js')",
-            },
-            "path": {
-                "type": "string",
-                "description": "Base directory for search (default: current directory)",
-                "default": ".",
-            },
+            "pattern": {"type": "string", "description": "Glob pattern (e.g., '*.py')"},
+            "path": {"type": "string", "description": "Base directory", "default": "."},
         },
         "required": ["pattern"],
     }

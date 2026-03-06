@@ -13,15 +13,11 @@ class GitStatusTool(BaseTool):
     """Get git repository status."""
 
     name = "git_status"
-    description = "Show the working tree status of the git repository. Returns staged, unstaged, and untracked files."
+    description = "Show git status."
     parameters = {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to git repository (default: current directory)",
-                "default": ".",
-            },
+            "path": {"type": "string", "description": "Repository path", "default": "."},
         },
         "required": [],
     }
@@ -129,24 +125,13 @@ class GitDiffTool(BaseTool):
     """Show git diff."""
 
     name = "git_diff"
-    description = "Show changes between working tree and index, or between commits. Can show diff for specific files."
+    description = "Show git diff."
     parameters = {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to git repository (default: current directory)",
-                "default": ".",
-            },
-            "file": {
-                "type": "string",
-                "description": "Specific file to show diff for (optional)",
-            },
-            "staged": {
-                "type": "boolean",
-                "description": "Show staged changes instead of unstaged",
-                "default": False,
-            },
+            "path": {"type": "string", "description": "Repository path", "default": "."},
+            "file": {"type": "string", "description": "Specific file"},
+            "staged": {"type": "boolean", "description": "Show staged changes", "default": False},
         },
         "required": [],
     }
@@ -208,20 +193,12 @@ class GitAddTool(BaseTool):
     """Stage files for commit."""
 
     name = "git_add"
-    description = "Add file contents to the staging area (git add). Can add specific files or all changes."
+    description = "Stage files (git add)."
     parameters = {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to git repository (default: current directory)",
-                "default": ".",
-            },
-            "files": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Files to add (default: all changes with '.')",
-            },
+            "path": {"type": "string", "description": "Repository path", "default": "."},
+            "files": {"type": "array", "items": {"type": "string"}, "description": "Files to stage"},
         },
         "required": [],
     }
@@ -285,24 +262,13 @@ class GitCommitTool(BaseTool):
     """Commit staged changes."""
 
     name = "git_commit"
-    description = "Record changes to the repository (git commit). Creates a commit with the given message."
+    description = "Commit changes."
     parameters = {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to git repository (default: current directory)",
-                "default": ".",
-            },
-            "message": {
-                "type": "string",
-                "description": "Commit message",
-            },
-            "add_all": {
-                "type": "boolean",
-                "description": "Stage all modified files before committing (-a flag)",
-                "default": False,
-            },
+            "path": {"type": "string", "description": "Repository path", "default": "."},
+            "message": {"type": "string", "description": "Commit message"},
+            "add_all": {"type": "boolean", "description": "Stage all first", "default": False},
         },
         "required": ["message"],
     }
@@ -370,25 +336,13 @@ class GitLogTool(BaseTool):
     """Show commit history."""
 
     name = "git_log"
-    description = "Show commit logs. Returns recent commits with hash, author, date, and message."
+    description = "Show commit history."
     parameters = {
         "type": "object",
         "properties": {
-            "path": {
-                "type": "string",
-                "description": "Path to git repository (default: current directory)",
-                "default": ".",
-            },
-            "count": {
-                "type": "integer",
-                "description": "Number of commits to show (default: 10)",
-                "default": 10,
-            },
-            "oneline": {
-                "type": "boolean",
-                "description": "Show one commit per line",
-                "default": True,
-            },
+            "path": {"type": "string", "description": "Repository path", "default": "."},
+            "count": {"type": "integer", "description": "Number of commits", "default": 10},
+            "oneline": {"type": "boolean", "description": "One line per commit", "default": True},
         },
         "required": [],
     }
