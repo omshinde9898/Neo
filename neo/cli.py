@@ -20,7 +20,7 @@ from rich.tree import Tree
 
 from neo import __version__
 from neo.agent import Agent
-from neo.agents import AgentResult, AgentTask
+from neo.agents import AgentResult, AgentTask, GeneralAgent
 from neo.agents.explore import ExploreAgent
 from neo.agents.plan import PlanAgent
 from neo.agents.code_review import CodeReviewAgent

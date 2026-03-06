@@ -64,6 +64,7 @@ class ToolExecution:
     dependencies: list[str] = field(default_factory=list)
     result: ToolResult | None = None
     executed: bool = False
+    tool_call_id: str = ""  # Required for OpenAI API
 
 
 class BaseAgent(ABC):
@@ -207,6 +208,7 @@ Guidelines:
             function = tool_call.get("function", {})
             name = function.get("name", "")
             arguments_str = function.get("arguments", "{}")
+            tool_call_id = tool_call.get("id", "")  # Capture tool_call_id
 
             try:
                 arguments = json.loads(arguments_str)
@@ -222,6 +224,7 @@ Guidelines:
                     tool_name=name,
                     arguments=arguments,
                     dependencies=dependencies,
+                    tool_call_id=tool_call_id,  # Store for API compliance
                 )
             )
 
@@ -284,6 +287,7 @@ Guidelines:
                         role="tool",
                         content=result.output if result.success else (result.error or "Error"),
                         name=execution.tool_name,
+                        tool_call_id=execution.tool_call_id,  # Required by OpenAI API
                     )
                 )
 
