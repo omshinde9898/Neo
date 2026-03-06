@@ -33,7 +33,7 @@ class ChatMessage(Static):
         self.content = content
         self.is_user = is_user
 
-    def compose(self) -> None:
+    def on_mount(self) -> None:
         """Compose the widget."""
         self.update_content()
 
@@ -265,8 +265,8 @@ class FileTree(Tree):
         super().__init__(self.root_path.name, **kwargs)
         self.auto_expand = False
 
-    def compose(self) -> None:
-        """Compose the tree."""
+    def on_mount(self) -> None:
+        """Build tree when mounted."""
         self.build_tree()
 
     def build_tree(self) -> None:
@@ -443,7 +443,7 @@ class InputArea(Static):
         """Initialize input area."""
         super().__init__(**kwargs)
 
-    def compose(self) -> None:
+    def compose(self):
         """Compose the widget."""
         # Use TextArea for multi-line input
         self.text_area = TextArea(
@@ -452,7 +452,7 @@ class InputArea(Static):
             show_line_numbers=False,
         )
         self.text_area.placeholder = self.placeholder
-        self.mount(self.text_area)
+        yield self.text_area
 
     def get_text(self) -> str:
         """Get current input text.
