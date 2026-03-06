@@ -50,20 +50,25 @@ class ChatMessage(Static):
 
     def update_content(self) -> None:
         """Update the displayed content."""
-        if not self.content and not self.is_streaming:
-            return
-
         # Create styled output
         if self.is_user:
             # User messages - cyan, no box
-            content_text = Text.from_markup(f"[bold cyan]You:[/bold cyan] {self.content}")
+            content_text = Text.assemble(
+                ("You: ", "bold cyan"),
+                (self.content, ""),
+            )
         else:
             # Assistant messages
             if self.is_streaming and not self.content:
                 # Thinking indicator
-                content_text = Text.from_markup("[dim]Neo is thinking...[/dim]")
+                content_text = Text("Neo is thinking...", style="dim")
             else:
-                content_text = Text.from_markup(f"[bold green]Neo:[/bold green] {self.content}")
+                # Show content (or empty if no content yet)
+                display_content = self.content or "(no response)"
+                content_text = Text.assemble(
+                    ("Neo: ", "bold green"),
+                    (display_content, ""),
+                )
 
         self.update(content_text)
 
@@ -443,6 +448,33 @@ class _SubmitTextArea(TextArea):
                 )
         else:
             super()._on_key(event)
+
+
+class ToolCall(Static):
+    """Display a tool call in the chat."""
+
+    def __init__(self, tool_name: str, inputs: dict[str, Any], **kwargs: Any):
+        """Initialize tool call display.
+
+        Args:
+            tool_name: Name of the tool
+            inputs: Tool inputs/arguments
+            **kwargs: Additional widget arguments
+        """
+        super().__init__(**kwargs)
+        self.tool_name = tool_name
+        self.inputs = inputs
+
+    def on_mount(self) -> None:
+        """Display the tool call."""
+        # Format inputs as compact string
+        input_str = ", ".join(f"{k}={repr(v)[:30]}" for k, v in self.inputs.items())
+        if len(input_str) > 50:
+            input_str = input_str[:47] + "..."
+
+        # Display in dimmed light blue
+        display_text = f"[dim cyan]Tool:{self.tool_name}({input_str})[/dim cyan]"
+        self.update(display_text)
 
 
 class InputArea(Static):

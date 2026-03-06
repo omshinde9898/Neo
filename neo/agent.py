@@ -57,12 +57,14 @@ class Agent:
         self,
         user_input: str,
         streaming_callback: Callable[[str], None] | None = None,
+        tool_callback: Callable[[str, dict[str, Any]], None] | None = None,
     ) -> str:
         """Execute user request through the orchestrated multi-agent system.
 
         Args:
             user_input: User's request
             streaming_callback: Optional callback for streaming output
+            tool_callback: Optional callback for tool execution
 
         Returns:
             Final response from the agent
@@ -74,6 +76,7 @@ class Agent:
             result = await self.orchestrator.execute(
                 user_input=user_input,
                 streaming_callback=streaming_callback,
+                tool_callback=tool_callback,
             )
 
             if result.success:

@@ -28,8 +28,6 @@ class PlanAgent(BaseAgent):
     description = "Creates implementation plans"
     system_prompt = "You are a planning expert. Create step-by-step implementation plans. Use tools to explore first. Output plans as JSON."
 
-    DEFAULT_MAX_ITERATIONS = 8
-
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute planning task.
 
@@ -60,7 +58,7 @@ class PlanAgent(BaseAgent):
         # Run planning
         result = await self._run_agent_loop(
             messages=messages,
-            max_iterations=self.DEFAULT_MAX_ITERATIONS,
+            max_iterations=task.max_iterations,
         )
 
         # Parse the plan
@@ -202,7 +200,7 @@ class PlanAgent(BaseAgent):
             type="plan",
             description=task_description,
             context={"files_to_explore": files_to_explore or []},
-            max_iterations=self.DEFAULT_MAX_ITERATIONS,
+            max_iterations=self.config.max_iterations,
         )
         return await self.execute(task)
 
@@ -221,6 +219,6 @@ class PlanAgent(BaseAgent):
             description=f"Analyze the architecture of the codebase{f' at {target_path}' if target_path else ''}. "
                        f"Identify: main components, data flow, dependencies, entry points, "
                        f"configuration patterns, and architectural patterns used.",
-            max_iterations=6,
+            max_iterations=self.config.max_iterations,
         )
         return await self.execute(task)

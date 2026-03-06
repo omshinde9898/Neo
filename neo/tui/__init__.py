@@ -9,7 +9,7 @@ This module provides a modern terminal UI for Neo using Textual:
 """
 
 from neo.tui.app import NeoApp
-from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree
+from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree, InputArea, ToolCall
 
 __all__ = [
     "NeoApp",
@@ -17,4 +17,6 @@ __all__ = [
     "CodeView",
     "DiffView",
     "FileTree",
+    "InputArea",
+    "ToolCall",
 ]

@@ -159,6 +159,17 @@ class OpenAIClient:
         "o1-preview",
     ]
 
+    # Pricing per 1M tokens (input, output) in USD
+    PRICING = {
+        "gpt-4o": (2.50, 10.00),
+        "gpt-4o-mini": (0.15, 0.60),
+        "o1-preview": (15.00, 60.00),
+        "o1-mini": (3.00, 12.00),
+        "gpt-4-turbo": (10.00, 30.00),
+        "gpt-4": (30.00, 60.00),
+        "gpt-3.5-turbo": (0.50, 1.50),
+    }
+
     def __init__(self, api_key: str, model: str = "gpt-4o-mini", base_url: str | None = None):
         """Initialize the OpenAI client.
 
@@ -296,3 +307,61 @@ class OpenAIClient:
         """Reset token statistics."""
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
+
+    def get_cost_stats(self) -> dict[str, Any]:
+        """Get cost statistics with pricing breakdown.
+
+        Returns:
+            Dict with token counts and estimated cost in USD
+        """
+        prompt_tokens = self.total_prompt_tokens
+        completion_tokens = self.total_completion_tokens
+        total_tokens = prompt_tokens + completion_tokens
+
+        # Get pricing for current model (fallback to gpt-4o-mini if unknown)
+        model_pricing = self.PRICING.get(self.model, self.PRICING["gpt-4o-mini"])
+        input_price_per_1m, output_price_per_1m = model_pricing
+
+        # Calculate costs (price per 1M tokens)
+        input_cost = (prompt_tokens / 1_000_000) * input_price_per_1m
+        output_cost = (completion_tokens / 1_000_000) * output_price_per_1m
+        total_cost = input_cost + output_cost
+
+        return {
+            "model": self.model,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": total_tokens,
+            "input_cost": input_cost,
+            "output_cost": output_cost,
+            "total_cost": total_cost,
+            "input_price_per_1m": input_price_per_1m,
+            "output_price_per_1m": output_price_per_1m,
+        }
+
+    def format_cost_report(self) -> str:
+        """Format a cost report for display.
+
+        Returns:
+            Formatted cost report string
+        """
+        stats = self.get_cost_stats()
+
+        lines = [
+            "📊 Session Cost Report",
+            "",
+            f"Model: {stats['model']}",
+            f"Pricing: ${stats['input_price_per_1m']:.2f} / ${stats['output_price_per_1m']:.2f} per 1M tokens",
+            "",
+            "Token Usage:",
+            f"  Input tokens:  {stats['prompt_tokens']:,}",
+            f"  Output tokens: {stats['completion_tokens']:,}",
+            f"  Total tokens:  {stats['total_tokens']:,}",
+            "",
+            "Estimated Cost:",
+            f"  Input cost:  ${stats['input_cost']:.6f}",
+            f"  Output cost: ${stats['output_cost']:.6f}",
+            f"  Total cost:  ${stats['total_cost']:.6f}",
+        ]
+
+        return "\n".join(lines)

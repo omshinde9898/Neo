@@ -81,6 +81,7 @@ class BaseAgent(ABC):
         project_path: Path,
         config: Config | None = None,
         streaming_callback: Callable[[str], None] | None = None,
+        tool_callback: Callable[[str, dict[str, Any]], None] | None = None,
     ):
         """Initialize the agent.
 
@@ -90,6 +91,7 @@ class BaseAgent(ABC):
             project_path: Path to the current project
             config: Configuration settings
             streaming_callback: Optional callback for streaming output
+            tool_callback: Optional callback for tool execution (tool_name, inputs)
         """
         self.llm = llm
         self.tools = tools
@@ -97,6 +99,7 @@ class BaseAgent(ABC):
         self.config = config or Config.load()
         self.memory = SessionMemory(max_turns=self.config.max_session_turns)
         self.streaming_callback = streaming_callback
+        self.tool_callback = tool_callback
         self._subagents: list[BaseAgent] = []
 
         logger.info(f"{self.__class__.__name__} initialized")
@@ -294,6 +297,13 @@ class BaseAgent(ABC):
         Returns:
             ToolResult from execution
         """
+        # Notify tool callback if registered
+        if self.tool_callback:
+            try:
+                self.tool_callback(execution.tool_name, execution.arguments)
+            except Exception:
+                pass  # Don't fail if callback errors
+
         return await self.tools.execute(execution.tool_name, execution.arguments)
 
     def build_system_message(self, extra_context: str = "") -> Message:

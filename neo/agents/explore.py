@@ -27,9 +27,6 @@ class ExploreAgent(BaseAgent):
     description = "Fast codebase exploration and navigation"
     system_prompt = "You are a code explorer. Use tools to find files and symbols quickly. Be concise."
 
-    # Fewer iterations for faster response
-    DEFAULT_MAX_ITERATIONS = 5
-
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute an exploration task.
 
@@ -41,9 +38,6 @@ class ExploreAgent(BaseAgent):
         """
         logger.info(f"ExploreAgent: {task.description}")
 
-        # Limit iterations for speed
-        max_iterations = min(task.max_iterations, self.DEFAULT_MAX_ITERATIONS)
-
         # Build focused exploration prompt
         explore_prompt = self._build_exploration_prompt(task)
 
@@ -52,10 +46,10 @@ class ExploreAgent(BaseAgent):
             Message(role="user", content=explore_prompt),
         ]
 
-        # Run exploration
+        # Run exploration (use config max_iterations via base class)
         result = await self._run_agent_loop(
             messages=messages,
-            max_iterations=max_iterations,
+            max_iterations=task.max_iterations,
         )
 
         # Parse exploration results

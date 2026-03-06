@@ -26,8 +26,6 @@ class CodeReviewAgent(BaseAgent):
     description = "Code review and quality analysis"
     system_prompt = "You are a code reviewer. Analyze code for bugs, security, and quality. Be specific with line numbers."
 
-    DEFAULT_MAX_ITERATIONS = 8
-
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute code review task.
 
@@ -55,7 +53,7 @@ class CodeReviewAgent(BaseAgent):
 
         result = await self._run_agent_loop(
             messages=messages,
-            max_iterations=self.DEFAULT_MAX_ITERATIONS,
+            max_iterations=task.max_iterations,
         )
 
         # Parse findings
@@ -120,7 +118,7 @@ class CodeReviewAgent(BaseAgent):
                        f"Read the file first, then provide a comprehensive review "
                        f"covering correctness, security, performance, and maintainability.",
             context={"file_path": file_path},
-            max_iterations=self.DEFAULT_MAX_ITERATIONS,
+            max_iterations=self.config.max_iterations,
         )
         return await self.execute(task)
 
@@ -137,6 +135,6 @@ class CodeReviewAgent(BaseAgent):
             id="review_diff",
             type="code_review",
             description="Review the following code changes:\n\n```diff\n" + diff + "\n```",
-            max_iterations=self.DEFAULT_MAX_ITERATIONS,
+            max_iterations=self.config.max_iterations,
         )
         return await self.execute(task)

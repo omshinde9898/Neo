@@ -81,12 +81,14 @@ class AgentOrchestrator:
         self,
         user_input: str,
         streaming_callback: Any | None = None,
+        tool_callback: Any | None = None,
     ) -> AgentResult:
         """Execute user input through the orchestrated agent system.
 
         Args:
             user_input: User's request
             streaming_callback: Optional callback for streaming output
+            tool_callback: Optional callback for tool execution
 
         Returns:
             AgentResult with the execution result
@@ -108,7 +110,7 @@ class AgentOrchestrator:
         self._task_history.append(task)
 
         # Get or create the agent
-        agent = self._get_agent(route.agent_type, streaming_callback)
+        agent = self._get_agent(route.agent_type, streaming_callback, tool_callback)
 
         # Execute
         try:
@@ -315,12 +317,14 @@ Respond with JSON:
         self,
         agent_type: str,
         streaming_callback: Any | None = None,
+        tool_callback: Any | None = None,
     ) -> BaseAgent:
         """Get or create an agent of the specified type.
 
         Args:
             agent_type: Type of agent to get
             streaming_callback: Optional streaming callback
+            tool_callback: Optional tool execution callback
 
         Returns:
             BaseAgent instance
@@ -335,6 +339,7 @@ Respond with JSON:
             project_path=self.project_path,
             config=self.config,
             streaming_callback=streaming_callback,
+            tool_callback=tool_callback,
         )
 
     def create_execution_plan(

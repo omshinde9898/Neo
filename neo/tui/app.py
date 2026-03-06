@@ -26,7 +26,7 @@ from neo.tools.registry import ToolRegistry
 from neo.tools.search import SearchCodeTool, ViewCodeTool
 from neo.tools.shell import RunShellTool
 from neo.tools.system import GetSystemInfoTool
-from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree, InputArea, StatusBar
+from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree, InputArea, StatusBar, ToolCall
 from neo.utils.path import find_project_root
 
 
@@ -39,6 +39,7 @@ class CommandPalette(ModalScreen):
 
     COMMANDS = {
         "status": "Show agent status",
+        "cost": "Show token usage and cost",
         "reset": "Clear conversation memory",
         "diff": "Show git diff",
         "tree": "Refresh file tree",
@@ -125,6 +126,11 @@ class NeoApp(App):
 
     ChatMessage {
         margin: 1 0;
+    }
+
+    ToolCall {
+        height: auto;
+        margin: 0 0 0 4;
     }
 
     /* Input area */
@@ -368,6 +374,8 @@ class NeoApp(App):
             self.exit()
         elif cmd == "status":
             asyncio.create_task(self._run_agent_query("/status"))
+        elif cmd == "cost":
+            self._show_cost()
         elif cmd == "reset":
             self.agent.reset_memory()
             self.notify("Memory cleared")
@@ -386,6 +394,7 @@ class NeoApp(App):
 
 Commands:
   /status  - Show agent status
+  /cost    - Show token usage and cost
   /reset   - Clear memory
   /diff    - Show git diff
   /tree    - Refresh file tree
@@ -401,6 +410,11 @@ Keyboard Shortcuts:
   Ctrl+/   - Focus Input
 """
         self._add_system_message(help_text)
+
+    def _show_cost(self) -> None:
+        """Show cost and token usage report."""
+        cost_report = self.llm.format_cost_report()
+        self._add_system_message(cost_report)
 
     def _add_user_message(self, text: str) -> None:
         """Add a user message to the chat.
@@ -461,6 +475,23 @@ Keyboard Shortcuts:
             self.current_streaming_message.content += text
             self.call_later(self.current_streaming_message.refresh)
 
+    def _add_tool_call(self, tool_name: str, inputs: dict[str, Any]) -> None:
+        """Add a tool call display to the chat.
+
+        Args:
+            tool_name: Name of the tool
+            inputs: Tool inputs
+        """
+        chat = self.query_one("#chat-container", Vertical)
+        tool_display = ToolCall(tool_name, inputs)
+
+        # Insert before the current streaming message if it exists
+        if self.current_streaming_message:
+            chat.mount(tool_display, before=self.current_streaming_message)
+        else:
+            chat.mount(tool_display)
+        chat.scroll_end()
+
     def _finish_streaming_message(self) -> None:
         """Mark the current message as finished streaming."""
         if self.current_streaming_message:
@@ -507,11 +538,18 @@ Keyboard Shortcuts:
         self.call_later(self._add_assistant_message)
 
         try:
-            # Run the agent with streaming callback
+            # Run the agent with streaming and tool callbacks
             response = await self.agent.run(
                 query,
                 streaming_callback=self._update_streaming_message,
+                tool_callback=lambda name, inputs: self.call_later(
+                    lambda: self._add_tool_call(name, inputs)
+                ),
             )
+
+            # Update message with final response if streaming didn't populate it
+            if self.current_streaming_message and not self.current_streaming_message.content:
+                self.current_streaming_message.content = response
 
             # Finish streaming
             self.call_later(self._finish_streaming_message)

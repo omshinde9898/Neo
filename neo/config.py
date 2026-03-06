@@ -41,7 +41,7 @@ class Config:
     mock_mode: bool = False  # Use mock LLM for testing
 
     # Behavior
-    max_iterations: int = 5
+    max_iterations: int = 50
     auto_confirm_edits: bool = False
     show_diffs: bool = True
 
