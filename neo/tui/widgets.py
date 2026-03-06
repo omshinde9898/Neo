@@ -9,6 +9,7 @@ from rich.console import RenderableType
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.text import Text
+from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Label, Static, TextArea, Tree
 from textual.widgets.tree import TreeNode
@@ -21,17 +22,19 @@ class ChatMessage(Static):
     is_user = reactive(False)
     is_streaming = reactive(False)
 
-    def __init__(self, content: str = "", is_user: bool = False, **kwargs: Any):
+    def __init__(self, content: str = "", is_user: bool = False, is_streaming: bool = False, **kwargs: Any):
         """Initialize chat message.
 
         Args:
             content: Message content
             is_user: Whether this is a user message
+            is_streaming: Whether message is streaming
             **kwargs: Additional widget arguments
         """
         super().__init__(**kwargs)
         self.content = content
         self.is_user = is_user
+        self.is_streaming = is_streaming
 
     def on_mount(self) -> None:
         """Compose the widget."""
@@ -434,10 +437,30 @@ class StatusBar(Static):
         self.status = status
 
 
+class _SubmitTextArea(TextArea):
+    """TextArea that submits on Enter."""
+
+    def __init__(self, **kwargs):
+        self._parent_widget = None
+        super().__init__(**kwargs)
+
+    def _on_key(self, event) -> None:
+        """Handle key press."""
+        if event.key == "enter":
+            # Submit on Enter (Shift+Enter would be "shift+enter")
+            event.stop()
+            if self._parent_widget:
+                self._parent_widget.post_message(
+                    self._parent_widget.Submitted(self._parent_widget, self.text)
+                )
+        else:
+            super()._on_key(event)
+
+
 class InputArea(Static):
     """Enhanced input area with multi-line support."""
 
-    placeholder = reactive("Type your message... (Ctrl+Enter to submit)")
+    placeholder = reactive("Type your message... (Enter to submit)")
 
     def __init__(self, **kwargs: Any):
         """Initialize input area."""
@@ -445,25 +468,18 @@ class InputArea(Static):
 
     def compose(self):
         """Compose the widget."""
-        # Use TextArea for multi-line input
-        self.text_area = TextArea(
+        # Use custom TextArea that submits on Enter
+        self.text_area = _SubmitTextArea(
             text="",
-            language="markdown",
             show_line_numbers=False,
         )
+        self.text_area._parent_widget = self
         self.text_area.placeholder = self.placeholder
         yield self.text_area
 
     def on_mount(self) -> None:
         """Handle mount."""
         self.text_area.focus()
-
-    def on_key(self, event) -> None:
-        """Handle key events - submit on Ctrl+Enter."""
-        if event.key == "ctrl+enter":
-            # Submit handled by app binding
-            return
-        # Let TextArea handle other keys (including Enter for newlines)
 
     def get_text(self) -> str:
         """Get current input text.
@@ -480,3 +496,16 @@ class InputArea(Static):
     def focus_input(self) -> None:
         """Focus the input area."""
         self.text_area.focus()
+
+    class Submitted(Message):
+        """Message sent when input is submitted."""
+
+        def __init__(self, sender: InputArea, text: str) -> None:
+            """Initialize submitted message.
+
+            Args:
+                sender: The InputArea that sent the message
+                text: The submitted text
+            """
+            self.text = text
+            super().__init__()

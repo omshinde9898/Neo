@@ -5,3 +5,5 @@
 neo.egg-info/
 
 *__pycache__*
+
+.env

@@ -11,7 +11,7 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, Input, Label, Static, TextArea
+from textual.widgets import Button, Footer, Header, Input, Label, Static
 
 from neo import __version__
 from neo.agent import Agent
@@ -26,7 +26,7 @@ from neo.tools.registry import ToolRegistry
 from neo.tools.search import SearchCodeTool, ViewCodeTool
 from neo.tools.shell import RunShellTool
 from neo.tools.system import GetSystemInfoTool
-from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree, StatusBar
+from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree, InputArea, StatusBar
 from neo.utils.path import find_project_root
 
 
@@ -195,7 +195,6 @@ class NeoApp(App):
         Binding("ctrl+d", "show_diff", "Show Diff"),
         Binding("ctrl+g", "git_status", "Git Status"),
         Binding("ctrl+slash", "focus_input", "Focus Input"),
-        Binding("ctrl+enter", "submit", "Submit"),
     ]
 
     TITLE = f"Neo v{__version__}"
@@ -302,18 +301,14 @@ class NeoApp(App):
                         classes="welcome",
                     )
                     yield Label(
-                        "Type a message + Ctrl+Enter to send, or Ctrl+K for commands",
+                        "Type a message + Enter to send, or Ctrl+K for commands",
                         id="welcome-hint",
                         classes="welcome dim",
                     )
 
                 # Input area
                 with Container(id="input-container"):
-                    yield TextArea(
-                        text="",
-                        id="input-area",
-                        show_line_numbers=False,
-                    )
+                    yield InputArea(id="input-area")
 
         # Status bar
         yield StatusBar(id="status-bar")
@@ -333,16 +328,12 @@ class NeoApp(App):
 
     def _focus_input(self) -> None:
         """Focus the input area."""
-        input_area = self.query_one("#input-area", TextArea)
-        input_area.focus()
+        input_area = self.query_one("#input-area", InputArea)
+        input_area.focus_input()
 
     def action_focus_input(self) -> None:
         """Focus input action."""
         self._focus_input()
-
-    def action_submit(self) -> None:
-        """Submit the current input."""
-        self._handle_input_submit()
 
     def action_command_palette(self) -> None:
         """Show command palette."""
@@ -478,14 +469,14 @@ Keyboard Shortcuts:
 
     def _handle_input_submit(self) -> None:
         """Handle input submission."""
-        input_area = self.query_one("#input-area", TextArea)
-        text = input_area.text.strip()
+        input_area = self.query_one("#input-area", InputArea)
+        text = input_area.get_text().strip()
 
         if not text:
             return
 
         # Clear input
-        input_area.text = ""
+        input_area.clear()
 
         # Handle slash commands
         if text.startswith("/"):
@@ -530,22 +521,17 @@ Keyboard Shortcuts:
             self._add_system_message(f"Error: {e}")
             status.status = "Error"
 
-    def on_text_area_submitted(self, event: TextArea.Submitted) -> None:
-        """Handle text area submission.
+    def on_input_area_submitted(self, event: InputArea.Submitted) -> None:
+        """Handle input area submission.
 
         Args:
-            event: Submit event
+            event: Submit event with text
         """
         self._handle_input_submit()
 
     def on_key(self, event) -> None:
-        """Handle key events.
-
-        Args:
-            event: Key event
-        """
-        # Note: Enter key creates newlines in TextArea
-        # Use Ctrl+Enter to submit (handled by action_submit binding)
+        """Handle key events at app level."""
+        pass
 
     def action_quit(self) -> None:
         """Quit the app."""
