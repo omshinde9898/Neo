@@ -437,7 +437,7 @@ class StatusBar(Static):
 class InputArea(Static):
     """Enhanced input area with multi-line support."""
 
-    placeholder = reactive("Type your message...")
+    placeholder = reactive("Type your message... (Ctrl+Enter to submit)")
 
     def __init__(self, **kwargs: Any):
         """Initialize input area."""
@@ -453,6 +453,17 @@ class InputArea(Static):
         )
         self.text_area.placeholder = self.placeholder
         yield self.text_area
+
+    def on_mount(self) -> None:
+        """Handle mount."""
+        self.text_area.focus()
+
+    def on_key(self, event) -> None:
+        """Handle key events - submit on Ctrl+Enter."""
+        if event.key == "ctrl+enter":
+            # Submit handled by app binding
+            return
+        # Let TextArea handle other keys (including Enter for newlines)
 
     def get_text(self) -> str:
         """Get current input text.

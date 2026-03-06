@@ -195,6 +195,7 @@ class NeoApp(App):
         Binding("ctrl+d", "show_diff", "Show Diff"),
         Binding("ctrl+g", "git_status", "Git Status"),
         Binding("ctrl+slash", "focus_input", "Focus Input"),
+        Binding("ctrl+enter", "submit", "Submit"),
     ]
 
     TITLE = f"Neo v{__version__}"
@@ -301,7 +302,7 @@ class NeoApp(App):
                         classes="welcome",
                     )
                     yield Label(
-                        "Type a message or press Ctrl+K for commands",
+                        "Type a message + Ctrl+Enter to send, or Ctrl+K for commands",
                         id="welcome-hint",
                         classes="welcome dim",
                     )
@@ -338,6 +339,10 @@ class NeoApp(App):
     def action_focus_input(self) -> None:
         """Focus input action."""
         self._focus_input()
+
+    def action_submit(self) -> None:
+        """Submit the current input."""
+        self._handle_input_submit()
 
     def action_command_palette(self) -> None:
         """Show command palette."""
@@ -539,10 +544,8 @@ Keyboard Shortcuts:
         Args:
             event: Key event
         """
-        # Check for Enter key (submit)
-        if event.key == "enter" and not event.shift:
-            event.prevent_default()
-            self._handle_input_submit()
+        # Note: Enter key creates newlines in TextArea
+        # Use Ctrl+Enter to submit (handled by action_submit binding)
 
     def action_quit(self) -> None:
         """Quit the app."""
