@@ -13,7 +13,7 @@ from platformdirs import user_config_dir
 
 # Load .env file from current directory or parent directories
 def _load_env_files() -> None:
-    """Load .env files from current directory and project root."""
+    """Load .env files from current directory, project root, and home directory."""
     # Try current directory first
     load_dotenv(".env")
     load_dotenv(".env.local")
@@ -26,6 +26,11 @@ def _load_env_files() -> None:
         if (current / ".git").exists() or (current / ".neo").exists():
             break
         current = current.parent
+
+    # Load from home directory as fallback (lowest priority)
+    home = Path.home()
+    load_dotenv(home / ".env")
+    load_dotenv(home / ".neo" / ".env")
 
 _load_env_files()
 
