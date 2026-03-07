@@ -37,6 +37,7 @@ class MockOpenAIClient:
         messages: list[Message],
         tools: list[dict[str, Any]] | None = None,
         stream: bool = False,
+        streaming_callback: Any | None = None,
     ) -> CompletionResult:
         """Return a mock completion response."""
         self.call_count += 1

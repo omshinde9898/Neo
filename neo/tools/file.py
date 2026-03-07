@@ -19,7 +19,7 @@ class ReadFileTool(BaseTool):
         "properties": {
             "file_path": {"type": "string", "description": "Path to file"},
             "offset": {"type": "integer", "description": "Start line (1-indexed)", "default": 1},
-            "limit": {"type": "integer", "description": "Max lines to read", "default": 50},
+            "limit": {"type": "integer", "description": "Max lines to read", "default": 200},
         },
         "required": ["file_path"],
     }
@@ -28,7 +28,7 @@ class ReadFileTool(BaseTool):
         self,
         file_path: str,
         offset: int | str = 1,
-        limit: int | str = 50,
+        limit: int | str = 200,
     ) -> ToolResult:
         """Read a file with optional offset and line limit."""
         try:
@@ -391,3 +391,118 @@ class GlobTool(BaseTool):
                 success=False,
                 error=f"Error searching pattern: {str(e)}",
             )
+
+
+class GrepTool(BaseTool):
+    """Search file contents using regex (like grep)."""
+
+    name = "Grep"
+    description = "Search for patterns in file contents using regex. Fast way to find code."
+    parameters = {
+        "type": "object",
+        "properties": {
+            "pattern": {"type": "string", "description": "Regex pattern to search for"},
+            "path": {"type": "string", "description": "Directory to search in", "default": "."},
+            "glob": {"type": "string", "description": "File pattern filter (e.g., '*.py')"},
+        },
+        "required": ["pattern"],
+    }
+
+    async def _execute_impl(
+        self,
+        pattern: str,
+        path: str = ".",
+        glob: str | None = None,
+    ) -> ToolResult:
+        """Search file contents using regex."""
+        import re
+
+        try:
+            search_path = Path(path).expanduser().resolve()
+
+            if not search_path.exists():
+                return ToolResult(
+                    success=False,
+                    error=f"Path not found: {path}",
+                )
+
+            # Compile regex
+            try:
+                compiled_pattern = re.compile(pattern, re.IGNORECASE)
+            except re.error as e:
+                return ToolResult(
+                    success=False,
+                    error=f"Invalid regex pattern: {e}",
+                )
+
+            # Find files to search
+            if glob:
+                files = [f for f in search_path.rglob(glob) if f.is_file()]
+            else:
+                files = [
+                    f for f in search_path.rglob("*")
+                    if f.is_file() and not self._is_binary(f)
+                ]
+
+            # Search files
+            matches = []
+            for file_path in files:
+                # Skip common non-source directories
+                if any(part.startswith('.') or part in {'venv', 'node_modules', '__pycache__', 'dist', 'build'}
+                       for part in file_path.parts):
+                    continue
+
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="replace")
+                    lines = content.splitlines()
+
+                    for i, line in enumerate(lines, 1):
+                        if compiled_pattern.search(line):
+                            rel_path = file_path.relative_to(search_path)
+                            matches.append({
+                                "file": str(rel_path),
+                                "line": i,
+                                "content": line[:150].strip(),
+                            })
+                except Exception:
+                    continue
+
+            # Format output
+            if not matches:
+                return ToolResult(
+                    success=True,
+                    output=f"No matches found for: {pattern}",
+                    data={"pattern": pattern, "matches": []},
+                )
+
+            output_lines = [f"Found {len(matches)} match(es) for '{pattern}':\n"]
+            for m in matches[:30]:  # Limit output
+                output_lines.append(f"{m['file']}:{m['line']} | {m['content']}")
+
+            if len(matches) > 30:
+                output_lines.append(f"\n... and {len(matches) - 30} more matches")
+
+            return ToolResult(
+                success=True,
+                output="\n".join(output_lines),
+                data={
+                    "pattern": pattern,
+                    "matches": matches,
+                    "total_matches": len(matches),
+                },
+            )
+
+        except Exception as e:
+            return ToolResult(
+                success=False,
+                error=f"Error searching: {str(e)}",
+            )
+
+    def _is_binary(self, file_path: Path) -> bool:
+        """Check if a file is binary."""
+        try:
+            with open(file_path, "rb") as f:
+                chunk = f.read(1024)
+                return b"\0" in chunk
+        except Exception:
+            return True

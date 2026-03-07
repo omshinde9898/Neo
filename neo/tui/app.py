@@ -21,7 +21,7 @@ from neo.llm.mock import MockOpenAIClient
 from neo.logger import get_logger
 from neo.memory.project import ProjectMemory
 from neo.tools.code import AnalyzeFileTool, FindSymbolTool
-from neo.tools.file import EditFileTool, GlobTool, ListDirTool, ReadFileTool, WriteFileTool
+from neo.tools.file import EditFileTool, GlobTool, GrepTool, ListDirTool, ReadFileTool, WriteFileTool
 from neo.tools.git import GitAddTool, GitCommitTool, GitDiffTool, GitLogTool, GitStatusTool
 from neo.tools.registry import ToolRegistry
 from neo.tools.search import SearchCodeTool, ViewCodeTool
@@ -264,6 +264,7 @@ class NeoApp(App):
         registry.register(EditFileTool())
         registry.register(ListDirTool())
         registry.register(GlobTool())
+        registry.register(GrepTool())
 
         # Code tools
         registry.register(AnalyzeFileTool())
