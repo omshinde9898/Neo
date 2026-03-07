@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,9 +13,10 @@ from neo.agents.general import GeneralAgent
 from neo.agents.plan import PlanAgent
 from neo.config import Config
 from neo.llm.client import Message, OpenAIClient
+from neo.logger import get_logger
 from neo.tools.registry import ToolRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass

@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import difflib
-import logging
 import shutil
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any, Callable
 
@@ -11,8 +10,9 @@ from neo.agents.base import AgentResult
 from neo.config import Config
 from neo.llm.client import OpenAIClient
 from neo.memory.project import ProjectMemory
+from neo.logger import get_logger, log_exception
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Agent:

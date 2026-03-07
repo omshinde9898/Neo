@@ -23,7 +23,7 @@ class AnalyzeFileTool(BaseTool):
         "required": ["file_path"],
     }
 
-    async def execute(self, file_path: str) -> ToolResult:
+    async def _execute_impl(self, file_path: str) -> ToolResult:
         """Analyze Python file structure."""
         try:
             path = Path(file_path).expanduser().resolve()
@@ -175,7 +175,7 @@ class FindSymbolTool(BaseTool):
         "required": ["symbol"],
     }
 
-    async def execute(self, symbol: str, path: str = ".") -> ToolResult:
+    async def _execute_impl(self, symbol: str, path: str = ".") -> ToolResult:
         """Find symbol definitions."""
         try:
             search_path = Path(path).expanduser().resolve()

@@ -6,6 +6,10 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class ToolResult:
@@ -47,9 +51,23 @@ class BaseTool(ABC):
             raise ValueError(f"Tool {self.__class__.__name__} must have a description")
 
     @abstractmethod
+    async def _execute_impl(self, **kwargs: Any) -> ToolResult:
+        """Execute the tool with given parameters (implementation)."""
+        pass
+
     async def execute(self, **kwargs: Any) -> ToolResult:
         """Execute the tool with given parameters."""
-        pass
+        logger.debug("Executing tool '%s' with args: %s", self.name, kwargs)
+        try:
+            result = await self._execute_impl(**kwargs)
+            if result.success:
+                logger.debug("Tool '%s' executed successfully", self.name)
+            else:
+                logger.warning("Tool '%s' failed: %s", self.name, result.error)
+            return result
+        except Exception as e:
+            logger.exception("Tool '%s' raised exception: %s", self.name, e)
+            return ToolResult(success=False, error=str(e))
 
     def to_openai_format(self) -> dict[str, Any]:
         """Convert tool to OpenAI function format."""

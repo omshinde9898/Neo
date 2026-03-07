@@ -36,7 +36,7 @@ class RunShellTool(BaseTool):
         ":(){ :|:& };:",  # Fork bomb
     ]
 
-    async def execute(
+    async def _execute_impl(
         self,
         command: str,
         timeout: int | str = 60,

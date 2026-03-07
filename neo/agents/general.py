@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from neo.agents.base import AgentResult, AgentTask, BaseAgent
 from neo.llm.client import Message
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class GeneralAgent(BaseAgent):
@@ -24,7 +25,18 @@ class GeneralAgent(BaseAgent):
 
     name = "general"
     description = "General coding assistant"
-    system_prompt = "You are Neo, a coding assistant. Use tools to explore, read, and edit code. Be concise."
+    system_prompt = """You are Neo, a helpful coding assistant. You help users write, read, and modify code.
+
+Guidelines:
+- Use tools to explore and understand before making changes
+- Be concise but complete - get to the point without rambling
+- Read files before explaining them
+- Show relevant code snippets when discussing changes
+- Use markdown formatting when it helps clarity (code blocks, bullet points)
+- Propose next steps but wait for confirmation before major edits
+- Ask permission before destructive operations (deleting files, large rewrites)
+- Focus on practical solutions over theoretical explanations
+- If you don't know something, say so rather than guessing"""
 
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute a general coding task.
@@ -37,11 +49,8 @@ class GeneralAgent(BaseAgent):
         """
         logger.info(f"GeneralAgent executing: {task.description}")
 
-        # Build messages
-        messages = [
-            self.build_system_message(),
-            Message(role="user", content=task.description),
-        ]
+        # Build messages with conversation history
+        messages = self.build_conversation_messages(task.description)
 
         # Add context from task
         if task.context:

@@ -23,7 +23,7 @@ class GetSystemInfoTool(BaseTool):
         "required": [],
     }
 
-    async def execute(self) -> ToolResult:
+    async def _execute_impl(self) -> ToolResult:
         """Get system information."""
         try:
             info = {

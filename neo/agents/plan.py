@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 from typing import Any
 
 from neo.agents.base import AgentResult, AgentTask, BaseAgent
 from neo.llm.client import Message
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class PlanAgent(BaseAgent):
@@ -26,7 +27,16 @@ class PlanAgent(BaseAgent):
 
     name = "plan"
     description = "Creates implementation plans"
-    system_prompt = "You are a planning expert. Create step-by-step implementation plans. Use tools to explore first. Output plans as JSON."
+    system_prompt = """You are a planning assistant. Help users design implementation strategies before making changes.
+
+Guidelines:
+- Explore the codebase first to understand current state
+- Break down complex tasks into clear, actionable steps
+- Identify files that need changes and potential risks
+- Suggest implementation order and dependencies
+- Use numbered lists for steps, bullet points for considerations
+- Keep plans practical and focused on the user's specific context
+- Note any patterns from the existing codebase to follow"""
 
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute planning task.
@@ -50,10 +60,8 @@ class PlanAgent(BaseAgent):
         # Build planning prompt
         planning_prompt = self._build_planning_prompt(task)
 
-        messages = [
-            self.build_system_message(),
-            Message(role="user", content=planning_prompt),
-        ]
+        # Build messages with conversation history
+        messages = self.build_conversation_messages(planning_prompt)
 
         # Run planning
         result = await self._run_agent_loop(

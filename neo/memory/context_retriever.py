@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -10,7 +9,9 @@ from typing import Any
 from neo.memory.code_indexer import CodeIndexer
 from neo.memory.vector import CodeChunk
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass

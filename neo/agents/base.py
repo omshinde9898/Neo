@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -11,11 +10,12 @@ from typing import Any, Callable
 
 from neo.config import Config
 from neo.llm.client import CompletionResult, Message, OpenAIClient
+from neo.logger import get_logger
 from neo.memory.session import SessionMemory
 from neo.tools.base import ToolResult
 from neo.tools.registry import ToolRegistry
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -72,7 +72,13 @@ class BaseAgent(ABC):
 
     name: str = ""
     description: str = ""
-    system_prompt: str = "You are a coding assistant. Use tools. Be concise."
+    system_prompt: str = """You are a helpful coding assistant. Use tools to explore and modify code.
+
+Guidelines:
+- Be concise but complete
+- Use tools rather than describing what you would do
+- Ask before destructive operations
+- Show relevant code when discussing changes"""
 
     def __init__(
         self,
@@ -175,6 +181,9 @@ class BaseAgent(ABC):
             else:
                 # Final response
                 logger.debug("No tool calls, returning final response")
+                # Sanitize output to remove JSON/markdown wrappers
+                if result.content:
+                    result.content = self._sanitize_output(result.content)
                 return result
 
         # Max iterations reached
@@ -320,6 +329,53 @@ class BaseAgent(ABC):
         if extra_context:
             content = f"{self.system_prompt}\n\nContext: {extra_context}"
         return Message(role="system", content=content)
+
+    def build_conversation_messages(self, user_content: str) -> list[Message]:
+        """Build messages list with system prompt, history, and user message.
+
+        Args:
+            user_content: Current user message content
+
+        Returns:
+            List of messages ready for LLM
+        """
+        messages: list[Message] = [self.build_system_message()]
+
+        # Add conversation history
+        for msg in self.memory.get_messages():
+            messages.append(Message(role=msg["role"], content=msg["content"]))
+
+        # Add current user message
+        messages.append(Message(role="user", content=user_content))
+
+        return messages
+
+    def _sanitize_output(self, content: str) -> str:
+        """Remove pure JSON wrappers from output while preserving markdown.
+
+        Args:
+            content: Raw LLM output
+
+        Returns:
+            Cleaned content
+        """
+        import json
+
+        # Only unwrap if content is purely a JSON string wrapper
+        # e.g., "{\"response\": \"actual content\"}" -> actual content
+        try:
+            parsed = json.loads(content.strip())
+            if isinstance(parsed, str):
+                return parsed.strip()
+            # If it's a dict with a single string value, extract it
+            if isinstance(parsed, dict) and len(parsed) == 1:
+                value = list(parsed.values())[0]
+                if isinstance(value, str):
+                    return value.strip()
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        return content.strip()
 
     def spawn_subagent(self, agent_class: type[BaseAgent]) -> BaseAgent:
         """Spawn a sub-agent for parallel work.

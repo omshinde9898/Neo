@@ -40,6 +40,7 @@ from neo.tools.system import GetSystemInfoTool
 from neo.tui.app import run_tui
 from neo.utils.path import find_project_root
 from neo.utils.transaction import TransactionManager
+from neo.logger import logger, log_exception
 
 console = Console()
 
@@ -97,13 +98,18 @@ def get_transaction_manager(project_path: Path) -> TransactionManager:
 @click.pass_context
 def cli(ctx: click.Context, model: str | None, project: str | None, verbose: bool) -> None:
     """Neo - Advanced coding agent with multi-agent system."""
+    logger.info("Neo CLI starting up")
+    logger.debug("Arguments: model=%s, project=%s, verbose=%s", model, project, verbose)
+
     if ctx.obj is None:
         ctx.obj = {}
 
     # Load config
     config = Config.load()
+    logger.debug("Config loaded: model=%s, mock_mode=%s", config.model, config.mock_mode)
     if model:
         config.model = model
+        logger.info("Model overridden via CLI: %s", model)
 
     ctx.obj["config"] = config
     ctx.obj["verbose"] = verbose
@@ -111,10 +117,13 @@ def cli(ctx: click.Context, model: str | None, project: str | None, verbose: boo
     # Find project root
     if project:
         project_path = Path(project).resolve()
+        logger.debug("Using project path from CLI: %s", project_path)
     else:
         project_path = find_project_root()
+        logger.debug("Found project root: %s", project_path)
 
     ctx.obj["project_path"] = project_path
+    logger.info("Project path set to: %s", project_path)
 
     # If no subcommand, run interactive mode
     if ctx.invoked_subcommand is None:
@@ -125,10 +134,12 @@ def cli(ctx: click.Context, model: str | None, project: str | None, verbose: boo
 @click.pass_context
 def interactive(ctx: click.Context) -> None:
     """Run in enhanced interactive mode."""
+    logger.info("Starting interactive mode")
     config: Config = ctx.obj["config"]
     project_path: Path = ctx.obj["project_path"]
 
     is_mock_mode = config.mock_mode or not config.openai_api_key
+    logger.info("Mock mode: %s", is_mock_mode)
 
     # Show enhanced banner
     banner_text = (
@@ -156,12 +167,15 @@ def interactive(ctx: click.Context) -> None:
     console.print("  Type /help for all commands\n")
 
     # Initialize components
+    logger.debug("Initializing agent components")
     llm, tools, agent = _init_agent(config, project_path)
 
     # Initialize context retriever
+    logger.debug("Initializing context retriever")
     context_retriever = ContextRetriever(project_path)
 
     # Interactive loop
+    logger.info("Entering interactive loop")
     while True:
         try:
             user_input = console.input("\n[bold green]>[/bold green] ").strip()
@@ -169,19 +183,24 @@ def interactive(ctx: click.Context) -> None:
             if not user_input:
                 continue
 
+            logger.debug("User input received: %s", user_input[:100])
+
             # Handle slash commands
             if user_input.startswith("/"):
                 cmd_parts = user_input[1:].split(maxsplit=1)
                 cmd = cmd_parts[0].lower()
                 args = cmd_parts[1] if len(cmd_parts) > 1 else ""
+                logger.info("Command executed: /%s", cmd)
 
                 if cmd in ("exit", "quit"):
+                    logger.info("User requested exit")
                     console.print("[dim]Goodbye![/dim]")
                     break
                 elif cmd == "status":
                     _show_status(agent, context_retriever)
                     continue
                 elif cmd == "reset":
+                    logger.info("Resetting agent memory")
                     agent.reset_memory()
                     console.print("[dim]Memory cleared[/dim]")
                     continue
@@ -189,22 +208,31 @@ def interactive(ctx: click.Context) -> None:
                     _show_help()
                     continue
                 elif cmd == "agent":
+                    logger.info("Running specific agent: %s", args)
                     _run_specific_agent(args, config, project_path, llm, tools)
                     continue
                 elif cmd == "search":
+                    logger.info("Semantic search: %s", args)
                     _semantic_search(args, project_path)
                     continue
                 elif cmd == "index":
+                    logger.info("Indexing codebase")
                     _index_codebase(project_path)
                     continue
                 elif cmd == "undo":
+                    logger.info("Undo requested")
                     _undo_change(project_path)
                     continue
                 elif cmd == "redo":
+                    logger.info("Redo requested")
                     _redo_change(project_path)
                     continue
                 elif cmd == "history":
                     _show_history(project_path)
+                    continue
+                elif cmd == "logs":
+                    logger.info("Showing recent logs")
+                    _show_logs(args)
                     continue
                 else:
                     console.print(f"[red]Unknown command: /{cmd}[/red]")
@@ -216,13 +244,18 @@ def interactive(ctx: click.Context) -> None:
                     context = context_retriever.get_context_for_query(user_input, max_chunks=3, max_files=2)
                     if context.relevant_files:
                         console.print(f"[dim]Context: {', '.join(context.relevant_files)}[/dim]")
-                except Exception:
+                        logger.debug("Retrieved context for files: %s", context.relevant_files)
+                except Exception as e:
+                    logger.warning("Failed to get context: %s", e)
                     pass
 
             # Run agent with streaming
             try:
+                logger.info("Running agent with user input")
                 _run_with_streaming(agent, user_input)
+                logger.info("Agent response completed")
             except Exception as e:
+                logger.exception("Error running agent: %s", e)
                 console.print(f"[red]Error: {e}[/red]")
 
         except KeyboardInterrupt:
@@ -233,11 +266,14 @@ def interactive(ctx: click.Context) -> None:
 
 def _init_agent(config: Config, project_path: Path) -> tuple[Any, ToolRegistry, Agent]:
     """Initialize agent components."""
+    logger.debug("Initializing agent for project: %s", project_path)
     is_mock_mode = config.mock_mode or not config.openai_api_key
 
     if is_mock_mode:
+        logger.info("Using mock LLM client")
         llm = MockOpenAIClient(model="mock")
     else:
+        logger.info("Using OpenAI client with model: %s", config.model)
         llm = OpenAIClient(
             api_key=config.openai_api_key,
             model=config.model,
@@ -245,7 +281,10 @@ def _init_agent(config: Config, project_path: Path) -> tuple[Any, ToolRegistry, 
         )
 
     tools = create_tool_registry()
+    logger.debug("Created tool registry with %d tools", len(tools.tools))
+
     agent = Agent(llm=llm, tools=tools, project_path=project_path, config=config)
+    logger.info("Agent initialized successfully")
 
     return llm, tools, agent
 
@@ -303,6 +342,7 @@ def _show_help() -> None:
   /undo                   - Undo last file change
   /redo                   - Redo last undone change
   /history                - Show operation history
+  /logs [N]               - Show last N log lines (default 50)
 
 [bold]Examples:[/bold]
   /agent explore "find all API endpoints"
@@ -509,6 +549,41 @@ def _show_history(project_path: Path) -> None:
     console.print("\n[bold]Operation History:[/bold]")
     for summary in reversed(summaries):
         console.print(f"  {summary}")
+
+
+def _show_logs(lines_str: str) -> None:
+    """Show recent log entries."""
+    from neo.logger import get_log_dir
+
+    log_dir = get_log_dir()
+    log_file = log_dir / "neo.log"
+
+    if not log_file.exists():
+        console.print(f"[dim]No log file found at {log_file}[/dim]")
+        return
+
+    # Parse number of lines to show (default 50)
+    try:
+        num_lines = int(lines_str) if lines_str else 50
+    except ValueError:
+        num_lines = 50
+
+    try:
+        with open(log_file, encoding="utf-8") as f:
+            all_lines = f.readlines()
+
+        # Get last N lines
+        recent_lines = all_lines[-num_lines:]
+
+        console.print(f"\n[bold]Recent Logs (last {len(recent_lines)} lines):[/bold]")
+        console.print(f"[dim]Log file: {log_file}[/dim]\n")
+
+        for line in recent_lines:
+            # Strip newline and print
+            console.print(line.rstrip())
+
+    except Exception as e:
+        console.print(f"[red]Error reading logs: {e}[/red]")
 
 
 def _run_with_streaming(agent: Agent, user_input: str) -> None:

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from neo.agents.base import AgentResult, AgentTask, BaseAgent
 from neo.llm.client import Message
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class CodeReviewAgent(BaseAgent):
@@ -24,7 +25,16 @@ class CodeReviewAgent(BaseAgent):
 
     name = "code_review"
     description = "Code review and quality analysis"
-    system_prompt = "You are a code reviewer. Analyze code for bugs, security, and quality. Be specific with line numbers."
+    system_prompt = """You are a code reviewer. Analyze code for correctness, security, performance, and maintainability.
+
+Guidelines:
+- Read the code carefully before commenting
+- Be specific: cite line numbers and file paths
+- Categorize issues by severity (critical/warning/suggestion)
+- Explain why something is a problem, not just what
+- Suggest concrete fixes or improvements
+- Acknowledge good practices you see, not just issues
+- Focus on the most important issues first"""
 
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute code review task.
@@ -37,10 +47,8 @@ class CodeReviewAgent(BaseAgent):
         """
         logger.info(f"CodeReviewAgent: {task.description}")
 
-        messages = [
-            self.build_system_message(),
-            Message(role="user", content=task.description),
-        ]
+        # Build messages with conversation history
+        messages = self.build_conversation_messages(task.description)
 
         # Add context
         if task.context:

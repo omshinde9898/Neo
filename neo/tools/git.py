@@ -22,7 +22,7 @@ class GitStatusTool(BaseTool):
         "required": [],
     }
 
-    async def execute(self, path: str = ".") -> ToolResult:
+    async def _execute_impl(self, path: str = ".") -> ToolResult:
         """Get git status."""
         try:
             repo_path = Path(path).expanduser().resolve()
@@ -136,7 +136,7 @@ class GitDiffTool(BaseTool):
         "required": [],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         path: str = ".",
         file: str | None = None,
@@ -203,7 +203,7 @@ class GitAddTool(BaseTool):
         "required": [],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         path: str = ".",
         files: list[str] | None = None,
@@ -273,7 +273,7 @@ class GitCommitTool(BaseTool):
         "required": ["message"],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         message: str,
         path: str = ".",
@@ -347,7 +347,7 @@ class GitLogTool(BaseTool):
         "required": [],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         path: str = ".",
         count: int | str = 10,

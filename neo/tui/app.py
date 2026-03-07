@@ -18,6 +18,7 @@ from neo.agent import Agent
 from neo.config import Config
 from neo.llm.client import OpenAIClient
 from neo.llm.mock import MockOpenAIClient
+from neo.logger import get_logger
 from neo.memory.project import ProjectMemory
 from neo.tools.code import AnalyzeFileTool, FindSymbolTool
 from neo.tools.file import EditFileTool, GlobTool, ListDirTool, ReadFileTool, WriteFileTool
@@ -28,6 +29,8 @@ from neo.tools.shell import RunShellTool
 from neo.tools.system import GetSystemInfoTool
 from neo.tui.widgets import ChatMessage, CodeView, DiffView, FileTree, InputArea, StatusBar, ToolCall
 from neo.utils.path import find_project_root
+
+logger = get_logger(__name__)
 
 
 class CommandPalette(ModalScreen):

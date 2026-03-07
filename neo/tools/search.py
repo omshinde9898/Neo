@@ -25,7 +25,7 @@ class SearchCodeTool(BaseTool):
         "required": ["pattern"],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         pattern: str,
         path: str = ".",
@@ -136,7 +136,7 @@ class ViewCodeTool(BaseTool):
         "required": ["file_path"],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         file_path: str,
         line: int | str | None = None,

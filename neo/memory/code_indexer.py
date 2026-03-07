@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import ast
-import logging
 import re
 from pathlib import Path
 from typing import Any
@@ -11,7 +10,9 @@ from typing import Any
 from neo.memory.project import ProjectMemory
 from neo.memory.vector import CodeChunk, VectorStore
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class CodeIndexer:

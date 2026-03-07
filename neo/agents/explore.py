@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 from neo.agents.base import AgentResult, AgentTask, BaseAgent
 from neo.llm.client import Message
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class ExploreAgent(BaseAgent):
@@ -25,7 +26,15 @@ class ExploreAgent(BaseAgent):
 
     name = "explore"
     description = "Fast codebase exploration and navigation"
-    system_prompt = "You are a code explorer. Use tools to find files and symbols quickly. Be concise."
+    system_prompt = """You are a code explorer. Help users understand and navigate codebases quickly.
+
+Guidelines:
+- Use search and glob tools to find relevant files efficiently
+- Show file paths with line numbers when referencing code
+- Summarize what you find in a scannable format (bullet points, short paragraphs)
+- If a search returns many results, prioritize the most relevant ones
+- Explain patterns you notice in the codebase structure
+- Suggest where to look next if the answer isn't complete"""
 
     async def _execute_task(self, task: AgentTask) -> AgentResult:
         """Execute an exploration task.
@@ -41,10 +50,8 @@ class ExploreAgent(BaseAgent):
         # Build focused exploration prompt
         explore_prompt = self._build_exploration_prompt(task)
 
-        messages = [
-            self.build_system_message(),
-            Message(role="user", content=explore_prompt),
-        ]
+        # Build messages with conversation history
+        messages = self.build_conversation_messages(explore_prompt)
 
         # Run exploration (use config max_iterations via base class)
         result = await self._run_agent_loop(

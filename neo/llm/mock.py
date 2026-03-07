@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 from neo.llm.client import CompletionResult, Message
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class MockOpenAIClient:

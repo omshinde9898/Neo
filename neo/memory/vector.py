@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from neo.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Try to import numpy
 try:

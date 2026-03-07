@@ -24,7 +24,7 @@ class ReadFileTool(BaseTool):
         "required": ["file_path"],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         file_path: str,
         offset: int | str = 1,
@@ -112,7 +112,7 @@ class WriteFileTool(BaseTool):
         "required": ["file_path", "content"],
     }
 
-    async def execute(self, file_path: str, content: str) -> ToolResult:
+    async def _execute_impl(self, file_path: str, content: str) -> ToolResult:
         """Write file with atomic operation and backup."""
         try:
             path = Path(file_path).expanduser().resolve()
@@ -171,7 +171,7 @@ class EditFileTool(BaseTool):
         "required": ["file_path", "old_string", "new_string"],
     }
 
-    async def execute(
+    async def _execute_impl(
         self,
         file_path: str,
         old_string: str,
@@ -277,7 +277,7 @@ class ListDirTool(BaseTool):
         "required": [],
     }
 
-    async def execute(self, path: str = ".", recursive: bool = False) -> ToolResult:
+    async def _execute_impl(self, path: str = ".", recursive: bool = False) -> ToolResult:
         """List directory contents."""
         try:
             dir_path = Path(path).expanduser().resolve()
@@ -356,7 +356,7 @@ class GlobTool(BaseTool):
         "required": ["pattern"],
     }
 
-    async def execute(self, pattern: str, path: str = ".") -> ToolResult:
+    async def _execute_impl(self, pattern: str, path: str = ".") -> ToolResult:
         """Search for files matching a glob pattern."""
         try:
             base_path = Path(path).expanduser().resolve()

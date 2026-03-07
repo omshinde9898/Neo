@@ -18,17 +18,20 @@ def _load_env_files() -> None:
     load_dotenv(".env")
     load_dotenv(".env.local")
 
-    # Try to find project root
+    # Try to find project root (stop at home directory)
     current = Path.cwd()
+    home = Path.home()
     for _ in range(5):  # Check up to 5 parent directories
         load_dotenv(current / ".env")
         load_dotenv(current / ".env.local")
         if (current / ".git").exists() or (current / ".neo").exists():
             break
+        # Stop if we reached home directory or filesystem root
+        if current == home or current.parent == current:
+            break
         current = current.parent
 
     # Load from home directory as fallback (lowest priority)
-    home = Path.home()
     load_dotenv(home / ".env")
     load_dotenv(home / ".neo" / ".env")
 
@@ -51,7 +54,7 @@ class Config:
     show_diffs: bool = True
 
     # Context
-    max_session_turns: int = 5
+    max_session_turns: int = 20
     include_project_context: bool = True
 
     # UI
